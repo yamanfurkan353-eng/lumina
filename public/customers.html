@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E8D5C4">
+    <title>Müşteriler - Hotel Master Lite</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="customers-page">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Hotel Master</h2>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="/dashboard.html">📊 Gösterge Paneli</a>
+                <a href="/reservations.html">📅 Rezervasyonlar</a>
+                <a href="/rooms.html">🛏️ Odalar</a>
+                <a href="/customers.html" class="active">👥 Müşteriler</a>
+                <hr style="opacity: 0.2; margin: 1rem 0;">
+                <a href="/settings.html">⚙️ Ayarlar</a>
+                <a href="#" id="logoutBtn">🚪 Çıkış</a>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <div class="topbar">
+                <h1 class="topbar-title">Müşteri Yönetimi</h1>
+                <button class="btn btn-primary" id="addCustomerBtn">+ Yeni Müşteri</button>
+            </div>
+            
+            <main class="main-content">
+                <!-- Search Bar -->
+                <div style="margin-bottom: 1.5rem;">
+                    <input type="text" id="searchInput" placeholder="Müşteri adı, e-posta veya telefon ara..." 
+                        style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                </div>
+                
+                <!-- Customers Table -->
+                <section class="table-container">
+                    <table id="customersTable">
+                        <thead>
+                            <tr>
+                                <th>Ad Soyad</th>
+                                <th>E-posta</th>
+                                <th>Telefon</th>
+                                <th>Konaklamalar</th>
+                                <th>Toplam Harcama</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 2rem;">Veriler yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+                
+                <!-- Pagination -->
+                <div style="text-align: center; padding: 2rem;">
+                    <button id="prevBtn" class="btn btn-secondary" style="display: none;">← Önceki</button>
+                    <span id="pageInfo" style="margin: 0 1rem;">Sayfa 1</span>
+                    <button id="nextBtn" class="btn btn-secondary" style="display: none;">Sonraki →</button>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Customer Modal -->
+    <div id="customerModal" class="modal" style="display: none;">
+        <div class="modal-dialog">
+            <h2 id="modalTitle">Yeni Müşteri</h2>
+            <form id="customerForm">
+                <div class="form-group">
+                    <label for="firstName">Ad</label>
+                    <input type="text" id="firstName" name="first_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Soyad</label>
+                    <input type="text" id="lastName" name="last_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Telefon</label>
+                    <input type="tel" id="phone" name="phone" placeholder="05551234567" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-posta</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="nationalId">Kimlik No</label>
+                    <input type="text" id="nationalId" name="national_id">
+                </div>
+                <div class="form-group">
+                    <label for="city">Şehir</label>
+                    <input type="text" id="city" name="city" value="Türkiye">
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" id="closeModalBtn">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Customer Details Modal -->
+    <div id="detailsModal" class="modal" style="display: none;">
+        <div class="modal-dialog">
+            <h2 id="detailsTitle">Müşteri Detayları</h2>
+            <div id="detailsContent" style="line-height: 1.8; font-size: 0.95rem;"></div>
+            <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn btn-secondary" id="closeDetailsBtn">Kapat</button>
+                <button class="btn btn-primary" id="editDetailBtn">Düzenle</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/app.js" defer></script>
+    <script src="/js/pwa.js" defer></script>
+    <script>
+        let currentPage = 1;
+        let searchQuery = '';
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!app.isAuthenticated) return;
+            loadCustomers();
+            
+            document.getElementById('addCustomerBtn').addEventListener('click', openAddModal);
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+            document.getElementById('closeDetailsBtn').addEventListener('click', closeDetailsModal);
+            document.getElementById('customerForm').addEventListener('submit', submitCustomerForm);
+            
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                currentPage = 1;
+                if (searchQuery.length > 2) {
+                    searchCustomers();
+                } else if (searchQuery.length === 0) {
+                    loadCustomers();
+                }
+            });
+            
+            document.getElementById('prevBtn').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadCustomers();
+                }
+            });
+            document.getElementById('nextBtn').addEventListener('click', () => {
+                currentPage++;
+                loadCustomers();
+            });
+        });
+        
+        async function loadCustomers() {
+            try {
+                const response = await fetch(`/api/customers?page=${currentPage}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tbody = document.querySelector('#customersTable tbody');
+                    const paginationData = data.pagination || {};
+                    
+                    tbody.innerHTML = data.data.map(customer => `
+                        <tr>
+                            <td>${customer.first_name} ${customer.last_name}</td>
+                            <td>${customer.email || '-'}</td>
+                            <td>${customer.phone}</td>
+                            <td>${customer.total_stays || 0}</td>
+                            <td>${app.formatCurrency(customer.total_spent || 0)}</td>
+                            <td>
+                                <button class="btn btn-small" onclick="viewDetails(${customer.id})">Detay</button>
+                                <button class="btn btn-danger btn-small" onclick="deleteCustomer(${customer.id})">Sil</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('pageInfo').textContent = `Sayfa ${currentPage}`;
+                    document.getElementById('prevBtn').style.display = currentPage > 1 ? 'inline-block' : 'none';
+                    document.getElementById('nextBtn').style.display = paginationData.has_next ? 'inline-block' : 'none';
+                }
+            } catch (error) {
+                console.error('Müşteri listesi yükleme hatası:', error);
+            }
+        }
+        
+        async function searchCustomers() {
+            try {
+                const response = await fetch(`/api/customers/search?q=${encodeURIComponent(searchQuery)}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tbody = document.querySelector('#customersTable tbody');
+                    tbody.innerHTML = data.data.map(customer => `
+                        <tr>
+                            <td>${customer.first_name} ${customer.last_name}</td>
+                            <td>${customer.email || '-'}</td>
+                            <td>${customer.phone}</td>
+                            <td>${customer.total_stays || 0}</td>
+                            <td>${app.formatCurrency(customer.total_spent || 0)}</td>
+                            <td>
+                                <button class="btn btn-small" onclick="viewDetails(${customer.id})">Detay</button>
+                                <button class="btn btn-danger btn-small" onclick="deleteCustomer(${customer.id})">Sil</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Müşteri arama hatası:', error);
+            }
+        }
+        
+        async function viewDetails(id) {
+            try {
+                const response = await fetch(`/api/customers/${id}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const customer = data.data;
+                    document.getElementById('detailsTitle').textContent = 
+                        `${customer.first_name} ${customer.last_name}`;
+                    document.getElementById('detailsContent').innerHTML = `
+                        <p><strong>E-posta:</strong> ${customer.email || '-'}</p>
+                        <p><strong>Telefon:</strong> ${customer.phone}</p>
+                        <p><strong>Kimlik No:</strong> ${customer.national_id || '-'}</p>
+                        <p><strong>Şehir:</strong> ${customer.city || '-'}</p>
+                        <p><strong>Ülke:</strong> ${customer.country || 'Türkiye'}</p>
+                        <p><strong>Toplam Konaklamalar:</strong> ${customer.total_stays || 0}</p>
+                        <p><strong>Toplam Harcama:</strong> ${app.formatCurrency(customer.total_spent || 0)}</p>
+                        <p><strong>Katılım Tarihi:</strong> ${app.formatDate(customer.created_at)}</p>
+                    `;
+                    document.getElementById('detailsModal').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Müşteri detayları yükleme hatası:', error);
+            }
+        }
+        
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Yeni Müşteri';
+            document.getElementById('customerForm').reset();
+            document.getElementById('customerModal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('customerModal').style.display = 'none';
+        }
+        
+        function closeDetailsModal() {
+            document.getElementById('detailsModal').style.display = 'none';
+        }
+        
+        async function submitCustomerForm(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('customerForm'));
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/customers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Müşteri başarıyla oluşturuldu');
+                    closeModal();
+                    loadCustomers();
+                } else {
+                    alert('Hata: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Müşteri oluşturma hatası:', error);
+            }
+        }
+        
+        async function deleteCustomer(id) {
+            if (confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) {
+                try {
+                    const response = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        alert('Müşteri silindi');
+                        loadCustomers();
+                    } else {
+                        alert('Silme hatası: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Müşteri silme hatası:', error);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

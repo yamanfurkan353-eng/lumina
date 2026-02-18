@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E8D5C4">
+    <title>Giriş - Hotel Master Lite</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <header class="login-header">
+            <img src="/images/logo.svg" alt="Hotel Master Lite" class="logo">
+            <h1>Hotel Master Lite</h1>
+            <p class="tagline">Otel Yönetim Sistemi</p>
+        </header>
+        
+        <form id="loginForm" class="login-form">
+            <div class="form-group">
+                <label for="email">E-posta</label>
+                <input type="email" id="email" name="email" required autocomplete="email">
+                <span class="error-message" id="emailError"></span>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Şifre</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <span class="error-message" id="passwordError"></span>
+            </div>
+            
+            <div class="form-group checkbox">
+                <input type="checkbox" id="remember" name="remember">
+                <label for="remember">Beni hatırla</label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full">Giriş Yap</button>
+            
+            <div class="form-message" id="formMessage"></div>
+        </form>
+        
+        <footer class="login-footer">
+            <p>&copy; 2026 Hotel Master. Tüm hakları saklıdır.</p>
+        </footer>
+    </div>
+    
+    <script src="/js/app.js" defer></script>
+    <script src="/js/pwa.js" defer></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const formMessage = document.getElementById('formMessage');
+            
+            formMessage.textContent = 'Giriş yapılıyor...';
+            formMessage.className = 'form-message loading';
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    if (localStorage.getItem('remember')) {
+                        localStorage.setItem('lastEmail', email);
+                    }
+                    window.location.href = '/dashboard.html';
+                } else {
+                    formMessage.textContent = data.message || 'Giriş başarısız';
+                    formMessage.className = 'form-message error';
+                }
+            } catch (error) {
+                formMessage.textContent = 'Bağlantı hatası';
+                formMessage.className = 'form-message error';
+            }
+        });
+        
+        // Load last email if remembered
+        if (localStorage.getItem('remember') && localStorage.getItem('lastEmail')) {
+            document.getElementById('email').value = localStorage.getItem('lastEmail');
+            document.getElementById('remember').checked = true;
+        }
+    </script>
+</body>
+</html>

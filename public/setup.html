@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E8D5C4">
+    <title>Kurulum - Hotel Master Lite</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="setup-page">
+    <div class="setup-container">
+        <header class="setup-header">
+            <img src="/images/logo.svg" alt="Hotel Master Lite" class="logo">
+            <h1>İlk Kurulum Sihirbazı</h1>
+            <p class="tagline">Otel Yönetim Sistemini Başlatın</p>
+        </header>
+        
+        <form id="setupForm" class="setup-form">
+            <div id="setupSteps"></div>
+            
+            <div class="setup-buttons">
+                <button type="button" id="prevBtn" class="btn btn-secondary" style="display:none;">Geri</button>
+                <button type="button" id="nextBtn" class="btn btn-primary">İleri</button>
+                <button type="submit" id="submitBtn" class="btn btn-success" style="display:none;">Bitir</button>
+            </div>
+            
+            <div class="form-message" id="setupMessage"></div>
+        </form>
+    </div>
+    
+    <script>
+        const steps = [
+            {
+                title: 'Otel Bilgileri',
+                fields: [
+                    {name: 'hotel_name', label: 'Otel Adı', type: 'text', required: true, placeholder: 'Otel adınızı girin'},
+                    {name: 'currency', label: 'Para Birimi', type: 'select', options: {TRY: 'Türk Lirası (₺)', EUR: 'Euro (€)', USD: 'Amerikan Doları ($)'}, value: 'TRY'}
+                ]
+            },
+            {
+                title: 'Yönetici Hesabı',
+                fields: [
+                    {name: 'admin_name', label: 'Adı Soyadı', type: 'text', required: true},
+                    {name: 'admin_email', label: 'E-posta', type: 'email', required: true},
+                    {name: 'admin_password', label: 'Şifre', type: 'password', required: true, minlength: 8},
+                    {name: 'admin_password_confirm', label: 'Şifre Tekrarı', type: 'password', required: true}
+                ]
+            },
+            {
+                title: 'Zaman Ayarları',
+                fields: [
+                    {name: 'check_in_time', label: 'Check-in Saati', type: 'time', value: '14:00'},
+                    {name: 'check_out_time', label: 'Check-out Saati', type: 'time', value: '11:00'}
+                ]
+            }
+        ];
+        
+        let currentStep = 0;
+        const formData = {};
+        
+        function renderStep(stepIndex) {
+            const step = steps[stepIndex];
+            const container = document.getElementById('setupSteps');
+            
+            let html = `<div class="setup-step" style="display:${stepIndex === currentStep ? 'block' : 'none'}">
+                <h2>${stepIndex + 1}. ${step.title}</h2>`;
+            
+            step.fields.forEach(field => {
+                html += `<div class="form-group">
+                    <label for="${field.name}">${field.label}</label>`;
+                
+                if (field.type === 'select') {
+                    html += `<select id="${field.name}" name="${field.name}" ${field.required ? 'required' : ''} value="${field.value || ''}">`;
+                    Object.entries(field.options).forEach(([key, val]) => {
+                        html += `<option value="${key}" ${key === field.value ? 'selected' : ''}>${val}</option>`;
+                    });
+                    html += `</select>`;
+                } else {
+                    html += `<input type="${field.type}" id="${field.name}" name="${field.name}" 
+                             placeholder="${field.placeholder || ''}"
+                             value="${formData[field.name] || field.value || ''}"
+                             ${field.required ? 'required' : ''}
+                             ${field.minlength ? `minlength="${field.minlength}"` : ''}
+                             ${field.type === 'time' ? `value="${field.value}"` : ''}>`;
+                }
+                
+                html += `<span class="error-message" id="${field.name}Error"></span></div>`;
+            });
+            
+            html += `</div>`;
+            
+            if (stepIndex === 0) {
+                container.innerHTML = html;
+            } else {
+                // Keep previous steps
+                const existingSteps = container.querySelectorAll('.setup-step');
+                if (existingSteps.length >= stepIndex) {
+                    existingSteps[stepIndex - 1]?.style?.setProperty('display', 'none');
+                }
+                const newStep = document.createElement('div');
+                newStep.innerHTML = html;
+                container.appendChild(newStep.firstElementChild);
+            }
+            
+            // Update buttons
+            document.getElementById('prevBtn').style.display = stepIndex > 0 ? 'block' : 'none';
+            document.getElementById('nextBtn').style.display = stepIndex < steps.length - 1 ? 'block' : 'none';
+            document.getElementById('submitBtn').style.display = stepIndex === steps.length - 1 ? 'block' : 'none';
+        }
+        
+        document.getElementById('setupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Validate passwords match
+            if (formData.admin_password !== formData.admin_password_confirm) {
+                document.getElementById('admin_password_confirmError').textContent = 'Şifreler eşleşmiyor';
+                return;
+            }
+            
+            const message = document.getElementById('setupMessage');
+            message.textContent = 'Kurulum yapılıyor...';
+            message.className = 'form-message loading';
+            
+            try {
+                const response = await fetch('/api/setup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    message.textContent = 'Kurulum tamamlandı! Yönlendiriliyorsunuz...';
+                    message.className = 'form-message success';
+                    setTimeout(() => window.location.href = '/login.html', 2000);
+                } else {
+                    message.textContent = data.message || 'Kurulum başarısız';
+                    message.className = 'form-message error';
+                }
+            } catch (error) {
+                message.textContent = 'Bağlantı hatası';
+                message.className = 'form-message error';
+            }
+        });
+        
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            // Save form data
+            steps[currentStep].fields.forEach(field => {
+                const input = document.getElementById(field.name);
+                if (input) formData[field.name] = input.value;
+            });
+            
+            currentStep++;
+            renderStep(currentStep);
+        });
+        
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            currentStep--;
+            renderStep(currentStep);
+        });
+        
+        // Initial render
+        renderStep(0);
+    </script>
+</body>
+</html>

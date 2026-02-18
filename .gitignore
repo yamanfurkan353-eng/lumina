@@ -1,0 +1,40 @@
+# Database
+database/hotel.db
+database/hotel.db-journal
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+storage/logs/
+storage/exports/
+storage/backups/
+storage/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencies
+vendor/
+node_modules/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build
+build/
+dist/
+
+# Testing
+.phpunit.result.cache
+
+# Sessions (if file-based)
+var/sessions/

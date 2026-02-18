@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E8D5C4">
+    <title>Ayarlar - Hotel Master Lite</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="settings-page">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Hotel Master</h2>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="/dashboard.html">📊 Gösterge Paneli</a>
+                <a href="/reservations.html">📅 Rezervasyonlar</a>
+                <a href="/rooms.html">🛏️ Odalar</a>
+                <a href="/customers.html">👥 Müşteriler</a>
+                <hr style="opacity: 0.2; margin: 1rem 0;">
+                <a href="/settings.html" class="active">⚙️ Ayarlar</a>
+                <a href="#" id="logoutBtn">🚪 Çıkış</a>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <div class="topbar">
+                <h1 class="topbar-title">Sistem Ayarları</h1>
+            </div>
+            
+            <main class="main-content" style="max-width: 800px;">
+                <!-- Hotel Settings -->
+                <section style="background: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+                    <h2 style="margin: 0 0 1.5rem 0; color: #333;">Otel Bilgileri</h2>
+                    <form id="settingsForm">
+                        <div class="form-group">
+                            <label for="hotelName">Otel Adı</label>
+                            <input type="text" id="hotelName" name="hotel_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="currency">Para Birimi</label>
+                            <input type="text" id="currency" name="currency" value="TRY" disabled style="background: #f0f0f0;">
+                        </div>
+                        <div class="form-group">
+                            <label for="checkInTime">Check-in Saati</label>
+                            <input type="time" id="checkInTime" name="check_in_time" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="checkOutTime">Check-out Saati</label>
+                            <input type="time" id="checkOutTime" name="check_out_time" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Ayarları Kaydet</button>
+                    </form>
+                </section>
+                
+                <!-- Backup & Restore -->
+                <section style="background: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+                    <h2 style="margin: 0 0 1.5rem 0; color: #333;">Yedek & Geri Yükleme</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                        <button class="btn btn-primary" id="backupBtn" style="padding: 1rem;">💾 Yedek Al</button>
+                        <button class="btn btn-warning" id="restoreBtn" style="padding: 1rem;">↺ Geri Yükle</button>
+                    </div>
+                    
+                    <h3 style="margin: 1.5rem 0 1rem 0; color: #555;">Yedek Dosyaları</h3>
+                    <div id="backupList" style="background: #f9f9f9; padding: 1rem; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                        <p style="text-align: center; color: #999;">Yükleniyor...</p>
+                    </div>
+                </section>
+                
+                <!-- Users Management -->
+                <section style="background: white; padding: 2rem; border-radius: 8px;">
+                    <h2 style="margin: 0 0 1.5rem 0; color: #333;">Kullanıcı Yönetimi</h2>
+                    
+                    <button class="btn btn-primary" id="addUserBtn" style="margin-bottom: 1rem;">+ Yeni Kullanıcı</button>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #ddd;">
+                                <th style="text-align: left; padding: 0.5rem;">Ad</th>
+                                <th style="text-align: left; padding: 0.5rem;">E-posta</th>
+                                <th style="text-align: left; padding: 0.5rem;">Rol</th>
+                                <th style="text-align: left; padding: 0.5rem;">Durum</th>
+                                <th style="text-align: left; padding: 0.5rem;">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersList">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 1rem; color: #999;">Yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Add User Modal -->
+    <div id="userModal" class="modal" style="display: none;">
+        <div class="modal-dialog">
+            <h2>Yeni Kullanıcı Oluştur</h2>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="userName">Ad Soyad</label>
+                    <input type="text" id="userName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">E-posta</label>
+                    <input type="email" id="userEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="userRole">Rol</label>
+                    <select id="userRole" name="role" required>
+                        <option value="receptionist">Resepsiyon</option>
+                        <option value="housekeeping">Oda Temizliği</option>
+                        <option value="admin">Yönetici</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="userPassword">Şifre</label>
+                    <input type="password" id="userPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="userPasswordConfirm">Şifre Tekrar</label>
+                    <input type="password" id="userPasswordConfirm" name="password_confirm" required>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" id="closeUserModalBtn">İptal</button>
+                    <button type="submit" class="btn btn-primary">Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/app.js" defer></script>
+    <script src="/js/pwa.js" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!app.isAuthenticated) return;
+            
+            loadSettings();
+            loadBackups();
+            loadUsers();
+            
+            document.getElementById('settingsForm').addEventListener('submit', submitSettings);
+            document.getElementById('backupBtn').addEventListener('click', createBackup);
+            document.getElementById('restoreBtn').addEventListener('click', restoreBackup);
+            document.getElementById('addUserBtn').addEventListener('click', openUserModal);
+            document.getElementById('closeUserModalBtn').addEventListener('click', closeUserModal);
+            document.getElementById('userForm').addEventListener('submit', submitUserForm);
+        });
+        
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const settings = {};
+                    data.data.forEach(s => {
+                        settings[s.key] = s.value;
+                    });
+                    
+                    document.getElementById('hotelName').value = settings.hotel_name || '';
+                    document.getElementById('checkInTime').value = settings.check_in_time || '14:00';
+                    document.getElementById('checkOutTime').value = settings.check_out_time || '11:00';
+                }
+            } catch (error) {
+                console.error('Ayarlar yükleme hatası:', error);
+            }
+        }
+        
+        async function submitSettings(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('settingsForm'));
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Ayarlar başarıyla kaydedildi');
+                } else {
+                    alert('Kaydetme hatası: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Ayarları kaydetme hatası:', error);
+            }
+        }
+        
+        async function createBackup() {
+            try {
+                const response = await fetch('/api/settings/backup', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Yedek başarıyla oluşturuldu');
+                    loadBackups();
+                } else {
+                    alert('Yedek oluşturma hatası: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Yedek oluşturma hatası:', error);
+            }
+        }
+        
+        async function restoreBackup() {
+            const backupFile = prompt('Geri yüklenecek yedek dosyasının adını girin:');
+            if (backupFile) {
+                try {
+                    const response = await fetch('/api/settings/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ backup_file: backupFile })
+                    });
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        alert('Yedekten başarıyla geri yüklendi');
+                        loadSettings();
+                    } else {
+                        alert('Geri yükleme hatası: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Geri yükleme hatası:', error);
+                }
+            }
+        }
+        
+        async function loadBackups() {
+            try {
+                const response = await fetch('/api/settings/backups');
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data.length > 0) {
+                    const html = data.data.map(backup => `
+                        <div style="padding: 0.5rem 0; border-bottom: 1px solid #eee; cursor: pointer;" 
+                             onclick="alert('${backup} adlı yedekten geri yüklemek için yukarıdaki Geri Yükle butonunu kullanın')">
+                            📅 ${backup}
+                        </div>
+                    `).join('');
+                    document.getElementById('backupList').innerHTML = html;
+                } else {
+                    document.getElementById('backupList').innerHTML = 
+                        '<p style="text-align: center; color: #999;">Henüz yedek bulunmuyor</p>';
+                }
+            } catch (error) {
+                console.error('Yedekler yükleme hatası:', error);
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tbody = document.getElementById('usersList');
+                    tbody.innerHTML = data.data.map(user => `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 0.75rem;">${user.name}</td>
+                            <td style="padding: 0.75rem;">${user.email}</td>
+                            <td style="padding: 0.75rem;">
+                                <span style="background: #e8d5c4; color: #5d4a3a; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.85rem;">
+                                    ${getRoleLabel(user.role)}
+                                </span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span style="background: ${user.is_active ? '#d4edda' : '#f8d7da'}; color: ${user.is_active ? '#155724' : '#721c24'}; 
+                                            padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.85rem;">
+                                    ${user.is_active ? 'Aktif' : 'Pasif'}
+                                </span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <button class="btn btn-small" onclick="editUser(${user.id})">Düzenle</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Kullanıcılar yükleme hatası:', error);
+            }
+        }
+        
+        function openUserModal() {
+            document.getElementById('userForm').reset();
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+        
+        async function submitUserForm(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('userForm'));
+            const data = Object.fromEntries(formData);
+            
+            if (data.password !== data.password_confirm) {
+                alert('Şifreler eşleşmiyor');
+                return;
+            }
+            
+            delete data.password_confirm;
+            
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Kullanıcı başarıyla oluşturuldu');
+                    closeUserModal();
+                    loadUsers();
+                } else {
+                    alert('Hata: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Kullanıcı oluşturma hatası:', error);
+            }
+        }
+        
+        function editUser(id) {
+            alert('Kullanıcı düzenleme özelliği gelecek sürümde');
+        }
+        
+        function getRoleLabel(role) {
+            const labels = {
+                'admin': 'Yönetici',
+                'receptionist': 'Resepsiyon',
+                'housekeeping': 'Oda Temizliği'
+            };
+            return labels[role] || role;
+        }
+    </script>
+</body>
+</html>

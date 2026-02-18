@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E8D5C4">
+    <title>Odalar - Hotel Master Lite</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="rooms-page">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Hotel Master</h2>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="/dashboard.html">📊 Gösterge Paneli</a>
+                <a href="/reservations.html">📅 Rezervasyonlar</a>
+                <a href="/rooms.html" class="active">🛏️ Odalar</a>
+                <a href="/customers.html">👥 Müşteriler</a>
+                <hr style="opacity: 0.2; margin: 1rem 0;">
+                <a href="/settings.html">⚙️ Ayarlar</a>
+                <a href="#" id="logoutBtn">🚪 Çıkış</a>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <div class="topbar">
+                <h1 class="topbar-title">Oda Yönetimi</h1>
+                <button class="btn btn-primary" id="addRoomBtn">+ Yeni Oda</button>
+            </div>
+            
+            <main class="main-content">
+                <!-- Rooms Table -->
+                <section class="table-container">
+                    <table id="roomsTable">
+                        <thead>
+                            <tr>
+                                <th>Oda No</th>
+                                <th>Tipi</th>
+                                <th>Kapasite</th>
+                                <th>Fiyat/Gece</th>
+                                <th>Durum</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 2rem;">Veriler yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+                
+                <!-- Pagination -->
+                <div style="text-align: center; padding: 2rem;">
+                    <button id="prevBtn" class="btn btn-secondary" style="display: none;">← Önceki</button>
+                    <span id="pageInfo" style="margin: 0 1rem;">Sayfa 1</span>
+                    <button id="nextBtn" class="btn btn-secondary" style="display: none;">Sonraki →</button>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Room Modal -->
+    <div id="roomModal" class="modal" style="display: none;">
+        <div class="modal-dialog">
+            <h2 id="modalTitle">Yeni Oda</h2>
+            <form id="roomForm">
+                <div class="form-group">
+                    <label for="roomNumber">Oda Numarası</label>
+                    <input type="text" id="roomNumber" name="room_number" placeholder="101, 102, vb." required>
+                </div>
+                <div class="form-group">
+                    <label for="roomType">Oda Tipi</label>
+                    <select id="roomType" name="room_type" required>
+                        <option value="single">Single</option>
+                        <option value="double">Double</option>
+                        <option value="suite">Suite</option>
+                        <option value="deluxe">Deluxe</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="capacity">Kapasite (Yatak)</label>
+                    <input type="number" id="capacity" name="capacity" min="1" max="4" required>
+                </div>
+                <div class="form-group">
+                    <label for="price">Gecelik Fiyat (₺)</label>
+                    <input type="number" id="price" name="price_per_night" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="floor">Kat</label>
+                    <input type="number" id="floor" name="floor" min="0" required>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" id="closeModalBtn">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/app.js" defer></script>
+    <script src="/js/pwa.js" defer></script>
+    <script>
+        let currentPage = 1;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!app.isAuthenticated) return;
+            loadRooms();
+            
+            document.getElementById('addRoomBtn').addEventListener('click', openAddModal);
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+            document.getElementById('roomForm').addEventListener('submit', submitRoomForm);
+            document.getElementById('prevBtn').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadRooms();
+                }
+            });
+            document.getElementById('nextBtn').addEventListener('click', () => {
+                currentPage++;
+                loadRooms();
+            });
+        });
+        
+        async function loadRooms() {
+            try {
+                const response = await fetch(`/api/rooms?page=${currentPage}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tbody = document.querySelector('#roomsTable tbody');
+                    const paginationData = data.pagination || {};
+                    
+                    tbody.innerHTML = data.data.map(room => `
+                        <tr>
+                            <td>${room.room_number}</td>
+                            <td>${room.room_type}</td>
+                            <td>${room.capacity}</td>
+                            <td>${app.formatCurrency(room.price_per_night)}</td>
+                            <td>
+                                <span class="badge ${getStatusBadgeClass(room.status)}">${getStatusLabel(room.status)}</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-small" onclick="editRoom(${room.id})">Düzenle</button>
+                                <button class="btn btn-danger btn-small" onclick="deleteRoom(${room.id})">Sil</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('pageInfo').textContent = `Sayfa ${currentPage}`;
+                    document.getElementById('prevBtn').style.display = currentPage > 1 ? 'inline-block' : 'none';
+                    document.getElementById('nextBtn').style.display = paginationData.has_next ? 'inline-block' : 'none';
+                }
+            } catch (error) {
+                console.error('Oda listesi yükleme hatası:', error);
+            }
+        }
+        
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Yeni Oda';
+            document.getElementById('roomForm').reset();
+            document.getElementById('roomModal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('roomModal').style.display = 'none';
+        }
+        
+        async function submitRoomForm(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('roomForm'));
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Oda başarıyla oluşturuldu');
+                    closeModal();
+                    loadRooms();
+                } else {
+                    alert('Hata: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Oda oluşturma hatası:', error);
+            }
+        }
+        
+        function editRoom(id) {
+            alert('Düzenleme özelliği gelecek sürümde');
+        }
+        
+        async function deleteRoom(id) {
+            if (confirm('Bu odayı silmek istediğinizden emin misiniz?')) {
+                try {
+                    const response = await fetch(`/api/rooms/${id}`, { method: 'DELETE' });
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        alert('Oda silindi');
+                        loadRooms();
+                    } else {
+                        alert('Silme hatası: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Oda silme hatası:', error);
+                }
+            }
+        }
+        
+        function getStatusBadgeClass(status) {
+            const classes = {
+                'available': 'badge-success',
+                'occupied': 'badge-info',
+                'dirty': 'badge-warning',
+                'maintenance': 'badge-danger'
+            };
+            return classes[status] || 'badge-secondary';
+        }
+        
+        function getStatusLabel(status) {
+            const labels = {
+                'available': 'Müsait',
+                'occupied': 'Dolu',
+                'dirty': 'Temizlenecek',
+                'maintenance': 'Bakımda'
+            };
+            return labels[status] || status;
+        }
+    </script>
+</body>
+</html>

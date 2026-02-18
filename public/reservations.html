@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E8D5C4">
+    <title>Rezervasyonlar - Hotel Master Lite</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- FullCalendar CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js" defer></script>
+</head>
+<body class="reservations-page">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Hotel Master</h2>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="/dashboard.html">📊 Gösterge Paneli</a>
+                <a href="/reservations.html" class="active">📅 Rezervasyonlar</a>
+                <a href="/rooms.html">🛏️ Odalar</a>
+                <a href="/customers.html">👥 Müşteriler</a>
+                <hr style="opacity: 0.2; margin: 1rem 0;">
+                <a href="/settings.html">⚙️ Ayarlar</a>
+                <a href="#" id="logoutBtn">🚪 Çıkış</a>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <div class="topbar">
+                <h1 class="topbar-title">Rezervasyonlar</h1>
+                <button class="btn btn-primary" id="addReservationBtn">+ Yeni Rezervasyon</button>
+            </div>
+            
+            <main class="main-content">
+                <!-- Calendar View -->
+                <div style="margin-bottom: 2rem;">
+                    <div style="display: flex; gap: 1rem; justify-content: space-between;">
+                        <div>
+                            <label>Ay Seç:</label>
+                            <input type="month" id="monthPicker" style="padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary" id="viewCalendarBtn">Takvim Görünümü</button>
+                            <button class="btn btn-secondary" id="viewListBtn">Liste Görünümü</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Calendar -->
+                <div id="calendarContainer" style="display: none; margin-bottom: 2rem; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div id="fullcalendar" style="min-height: 500px;"></div>
+                </div>
+                
+                <!-- List View -->
+                <section class="table-container">
+                    <table id="reservationsTable">
+                        <thead>
+                            <tr>
+                                <th>Müşteri</th>
+                                <th>Oda</th>
+                                <th>Check-in</th>
+                                <th>Check-out</th>
+                                <th>Tip</th>
+                                <th>Durum</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 2rem;">Veriler yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Reservation Modal -->
+    <div id="reservationModal" class="modal" style="display: none;">
+        <div class="modal-dialog" style="max-width: 600px;">
+            <h2>Yeni Rezervasyon</h2>
+            <form id="reservationForm">
+                <div class="form-group">
+                    <label for="customerSelect">Müşteri</label>
+                    <input type="text" id="customerSearch" placeholder="Müşteri ara..." style="margin-bottom: 0.5rem;">
+                    <select id="customerSelect" name="customer_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="roomSelect">Oda</label>
+                    <select id="roomSelect" name="room_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="checkIn">Check-in Tarihi</label>
+                    <input type="date" id="checkIn" name="check_in" required>
+                </div>
+                <div class="form-group">
+                    <label for="checkOut">Check-out Tarihi</label>
+                    <input type="date" id="checkOut" name="check_out" required>
+                </div>
+                <div class="form-group">
+                    <label for="guests">Konuk Sayısı</label>
+                    <input type="number" id="guests" name="number_of_guests" min="1" required>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" id="closeReservationModal">İptal</button>
+                    <button type="submit" class="btn btn-primary">Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/app.js" defer></script>
+    <script src="/js/pwa.js" defer></script>
+    <script>
+        let currentMonth = new Date().toISOString().substring(0, 7);
+        let calendar = null;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!app.isAuthenticated) return;
+            
+            document.getElementById('monthPicker').value = currentMonth;
+            loadReservations();
+            
+            // Wait for FullCalendar to be loaded, then initialize
+            setTimeout(() => {
+                if (typeof FullCalendar !== 'undefined') {
+                    initializeCalendar();
+                }
+            }, 1000);
+            
+            document.getElementById('addReservationBtn').addEventListener('click', openReservationModal);
+            document.getElementById('closeReservationModal').addEventListener('click', closeReservationModal);
+            document.getElementById('reservationForm').addEventListener('submit', submitReservationForm);
+            document.getElementById('viewCalendarBtn').addEventListener('click', () => {
+                document.getElementById('calendarContainer').style.display = 'block';
+                document.querySelector('.table-container').style.display = 'none';
+            });
+            document.getElementById('viewListBtn').addEventListener('click', () => {
+                document.getElementById('calendarContainer').style.display = 'none';
+                document.querySelector('.table-container').style.display = 'block';
+            });
+            document.getElementById('monthPicker').addEventListener('change', (e) => {
+                currentMonth = e.target.value;
+                loadReservations();
+            });
+        });
+        
+        function initializeCalendar() {
+            const calendarEl = document.getElementById('fullcalendar');
+            if (!calendarEl) return;
+            
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'tr',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                buttonText: {
+                    today: 'Bugün',
+                    month: 'Ay',
+                    week: 'Hafta',
+                    day: 'Gün'
+                },
+                eventClick: function(info) {
+                    alert(`Rezervasyon: ${info.event.title}\nCheck-in: ${info.event.start.toLocaleDateString('tr-TR')}`);
+                },
+                eventColor: '#C4886C',
+                eventTextColor: '#fff'
+            });
+            
+            calendar.render();
+            loadCalendarEvents();
+        }
+        
+        async function loadCalendarEvents() {
+            if (!calendar) return;
+            
+            try {
+                const response = await fetch(`/api/reservations?month=${currentMonth}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Convert reservations to calendar events
+                    const events = data.data.map(res => ({
+                        id: res.id,
+                        title: `📍 ${res.first_name} ${res.last_name} - Oda ${res.room_number}`,
+                        start: res.check_in,
+                        end: res.check_out,
+                        status: res.status,
+                        backgroundColor: getEventColor(res.status),
+                        borderColor: '#8B6345'
+                    }));
+                    
+                    calendar.removeAllEvents();
+                    events.forEach(event => calendar.addEvent(event));
+                }
+            } catch (error) {
+                console.error('Takvim etkinlikleri yükleme hatası:', error);
+            }
+        }
+        
+        function getEventColor(status) {
+            const colors = {
+                'confirmed': '#C4886C',
+                'checked_in': '#10B981',
+                'checked_out': '#6B7280',
+                'cancelled': '#EF4444'
+            };
+            return colors[status] || '#C4886C';
+        }
+        
+        async function loadReservations() {
+            try {
+                const response = await fetch(`/api/reservations?month=${currentMonth}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tbody = document.querySelector('#reservationsTable tbody');
+                    if (data.data.length > 0) {
+                        tbody.innerHTML = data.data.map(res => `
+                            <tr>
+                                <td>${res.first_name} ${res.last_name}</td>
+                                <td>${res.room_number}</td>
+                                <td>${app.formatDate(res.check_in)}</td>
+                                <td>${app.formatDate(res.check_out)}</td>
+                                <td>${res.room_type}</td>
+                                <td>
+                                    <span class="badge ${getStatusBadgeClass(res.status)}">${getStatusLabel(res.status)}</span>
+                                </td>
+                                <td>
+                                    ${res.status === 'confirmed' ? `<button class="btn btn-small" onclick="checkIn(${res.id})">Check-in</button>` : ''}
+                                    ${res.status === 'checked_in' ? `<button class="btn btn-small" onclick="checkOut(${res.id})">Check-out</button>` : ''}
+                                    <button class="btn btn-danger btn-small" onclick="cancelReservation(${res.id})">İptal</button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">Bu ay için rezervasyon yok</td></tr>';
+                    }
+                    
+                    // Update calendar if loaded
+                    if (calendar) {
+                        loadCalendarEvents();
+                    }
+                }
+            } catch (error) {
+                console.error('Rezervasyon listesi yükleme hatası:', error);
+                UIHelper.showMessage('Rezervasyonlar yüklenemedi', 'error');
+            }
+        }
+        
+        function openReservationModal() {
+            document.getElementById('reservationModal').style.display = 'block';
+            loadCustomersForModal();
+            loadRoomsForModal();
+        }
+        
+        function closeReservationModal() {
+            document.getElementById('reservationModal').style.display = 'none';
+        }
+        
+        async function loadCustomersForModal() {
+            try {
+                const response = await fetch('/api/customers');
+                const data = await response.json();
+                const select = document.getElementById('customerSelect');
+                select.innerHTML = '<option value="">Seçiniz...</option>' + 
+                    data.data.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name}</option>`).join('');
+            } catch (error) {
+                console.error('Müşteri listesi yükleme hatası:', error);
+            }
+        }
+        
+        async function loadRoomsForModal() {
+            try {
+                const response = await fetch('/api/rooms');
+                const data = await response.json();
+                const select = document.getElementById('roomSelect');
+                select.innerHTML = '<option value="">Seçiniz...</option>' + 
+                    data.data.map(r => `<option value="${r.id}">${r.room_number} (${r.room_type})</option>`).join('');
+            } catch (error) {
+                console.error('Oda listesi yükleme hatası:', error);
+            }
+        }
+        
+        async function submitReservationForm(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('reservationForm'));
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/reservations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    UIHelper.showMessage('Rezervasyon başarıyla oluşturuldu', 'success');
+                    closeReservationModal();
+                    loadReservations();
+                } else {
+                    UIHelper.showMessage('Hata: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Rezervasyon oluşturma hatası:', error);
+                UIHelper.showMessage('Rezervasyon oluşturma hatası', 'error');
+            }
+        }
+        
+        async function checkIn(id) {
+            try {
+                const response = await fetch(`/api/reservations/${id}/checkin`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    UIHelper.showMessage('Check-in başarılı', 'success');
+                    loadReservations();
+                }
+            } catch (error) {
+                console.error('Check-in hatası:', error);
+                UIHelper.showMessage('Check-in hatası', 'error');
+            }
+        }
+        
+        async function checkOut(id) {
+            try {
+                const response = await fetch(`/api/reservations/${id}/checkout`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    UIHelper.showMessage('Check-out başarılı', 'success');
+                    loadReservations();
+                }
+            } catch (error) {
+                console.error('Check-out hatası:', error);
+                UIHelper.showMessage('Check-out hatası', 'error');
+            }
+        }
+        
+        async function cancelReservation(id) {
+            if (confirm('Rezervasyonu iptal etmek istediğinizden emin misiniz?')) {
+                try {
+                    const response = await fetch(`/api/reservations/${id}`, { method: 'DELETE' });
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        UIHelper.showMessage('Rezervasyon iptal edildi', 'success');
+                        loadReservations();
+                    }
+                } catch (error) {
+                    console.error('Rezervasyon iptal hatası:', error);
+                    UIHelper.showMessage('Iptal hatası', 'error');
+                }
+            }
+        }
+        
+        function getStatusBadgeClass(status) {
+            const classes = {
+                'confirmed': 'badge-info',
+                'checked_in': 'badge-success',
+                'checked_out': 'badge-secondary',
+                'cancelled': 'badge-danger'
+            };
+            return classes[status] || 'badge-secondary';
+        }
+        
+        function getStatusLabel(status) {
+            const labels = {
+                'confirmed': 'Onaylandı',
+                'checked_in': 'Konaklamada',
+                'checked_out': 'Ayrıldı',
+                'cancelled': 'İptal'
+            };
+            return labels[status] || status;
+        }
+    </script>
+</body>
+</html>

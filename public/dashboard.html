@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E8D5C4">
+    <title>Gösterge Paneli - Hotel Master Lite</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js" defer></script>
+</head>
+<body class="dashboard-page">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Hotel Master</h2>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="/dashboard.html" class="active">📊 Gösterge Paneli</a>
+                <a href="/reservations.html">📅 Rezervasyonlar</a>
+                <a href="/rooms.html">🛏️ Odalar</a>
+                <a href="/customers.html">👥 Müşteriler</a>
+                <hr style="opacity: 0.2; margin: 1rem 0;">
+                <a href="/settings.html">⚙️ Ayarlar</a>
+                <a href="#" id="logoutBtn">🚪 Çıkış</a>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <div class="topbar">
+                <h1 class="topbar-title">Gösterge Paneli</h1>
+                <span id="userName" class="user-info">Yükleniyor...</span>
+            </div>
+            
+            <main class="main-content">
+                <!-- Statistics -->
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <h3>Doluluk Oranı</h3>
+                        <div class="value" id="occupancyRate">0%</div>
+                        <div class="subtitle">Bugün</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h3>Dolu Odalar</h3>
+                        <div class="value" id="occupiedRooms">0</div>
+                        <div class="subtitle">Toplam müsaitlerden</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h3>Bugün Check-in</h3>
+                        <div class="value" id="todayCheckIns">0</div>
+                        <div class="subtitle">Rezervasyon</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h3>Bugün Check-out</h3>
+                        <div class="value" id="todayCheckOuts">0</div>
+                        <div class="subtitle">Rezervasyon</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h3>Aylık Gelir</h3>
+                        <div class="value" id="monthlyRevenue">₺0</div>
+                        <div class="subtitle">Bu ay</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h3>Toplam Müşteri</h3>
+                        <div class="value" id="totalCustomers">0</div>
+                        <div class="subtitle">Sistem'de</div>
+                    </div>
+                </div>
+                
+                <!-- Charts Section -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+                    <!-- Revenue Chart -->
+                    <section class="card">
+                        <h2 style="padding: 1rem; margin: 0; border-bottom: 1px solid #E5E7EB;">💰 Aylık Gelir Trendi</h2>
+                        <div style="padding: 1rem; position: relative; height: 300px;">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </section>
+                    
+                    <!-- Occupancy Chart -->
+                    <section class="card">
+                        <h2 style="padding: 1rem; margin: 0; border-bottom: 1px solid #E5E7EB;">🏠 Oda Doluluk Durumu</h2>
+                        <div style="padding: 1rem; display: flex; justify-content: center; position: relative; height: 300px;">
+                            <canvas id="occupancyChart" style="max-width: 300px;"></canvas>
+                        </div>
+                    </section>
+                </div>
+                
+                <!-- Upcoming Check-ins -->
+                <section class="table-container" style="margin-top: 2rem;">
+                    <h2 style="padding: 1rem;">Yaklaşan Check-inler</h2>
+                    <table id="checkInsTable">
+                        <thead>
+                            <tr>
+                                <th>Müşteri</th>
+                                <th>Telefon</th>
+                                <th>Oda</th>
+                                <th>Check-in</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 2rem;">Veriler yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </main>
+        </div>
+    </div>
+    
+    <script src="/js/app.js" defer></script>
+    <script src="/js/pwa.js" defer></script>
+    <script>
+        // Dashboard specific code
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!app.isAuthenticated) return;
+            
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Update stats
+                    document.getElementById('occupancyRate').textContent = 
+                        data.data.rooms.occupancy_rate + '%';
+                    document.getElementById('occupiedRooms').textContent = 
+                        data.data.rooms.occupied + '/' + data.data.rooms.total;
+                    document.getElementById('todayCheckIns').textContent = 
+                        data.data.reservations.today_checkins;
+                    document.getElementById('todayCheckOuts').textContent = 
+                        data.data.reservations.today_checkouts;
+                    document.getElementById('monthlyRevenue').textContent = 
+                        app.formatCurrency(data.data.revenue.this_month);
+                    document.getElementById('totalCustomers').textContent = 
+                        data.data.customers.total;
+                    
+                    // Generate revenue data for chart (last 12 months)
+                    const revenueData = {
+                        labels: data.data.revenue.monthly_labels || ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'],
+                        values: data.data.revenue.monthly_values || [2000, 3000, 2500, 4000, 3500, 5000, 4500, 6000, 5500, 4000, 3500, 3000]
+                    };
+                    
+                    // Create charts
+                    ChartHelper.createRevenueChart('revenueChart', revenueData);
+                    ChartHelper.createOccupancyChart('occupancyChart', 
+                        data.data.rooms.occupied, 
+                        data.data.rooms.total - data.data.rooms.occupied
+                    );
+                    
+                    // Update check-ins table
+                    const tbody = document.querySelector('#checkInsTable tbody');
+                    if (data.data.upcoming_checkins.length > 0) {
+                        tbody.innerHTML = data.data.upcoming_checkins.map(res => `
+                            <tr>
+                                <td>${res.first_name} ${res.last_name}</td>
+                                <td>${res.phone}</td>
+                                <td>${res.room_number}</td>
+                                <td>${app.formatDate(res.check_in)}</td>
+                                <td>
+                                    <button class="btn btn-primary" onclick="alert('Check-in işlevi yükseltmede')">Check-in</button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">Gelecek check-in yok</td></tr>';
+                    }
+                }
+            } catch (error) {
+                console.error('Dashboard veri yükleme hatası:', error);
+                UIHelper.showMessage('Dashboard verileri yüklenemedi', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
